@@ -104,12 +104,23 @@ end
 ---@param bufnr  bufnr
 ---@return string
 local get_pick_letter = function(filename, bufnr)
-  local first_valid = 1
-
   -- Initialize the valid letters string, if not already initialized
   if not valid_pick_letters then
     valid_pick_letters = config.pick.letters
   end
+
+  -- If not using the filename to decide the pick character, do this
+  if not config.pick.use_filename then
+    local buf_index = buf_order[bufnr] or -1
+    if buf_index > vim.fn.strcharlen(valid_pick_letters) or buf_index == -1 then
+      return "?"
+    end
+    -- Use the nth letter of "valid_pick_letters" for the nth buffer
+    return vim.fn.strcharpart(config.pick.letters, buf_index - 1, 1)
+  end
+
+  -- From here onwards it is assumed that we are
+  -- using the filename to decide the pick character
 
   -- If the bufnr has already a letter associated to it return that.
   if taken_pick_letters[bufnr] then
@@ -118,27 +129,27 @@ local get_pick_letter = function(filename, bufnr)
 
   -- If the config option pick.use_filename is true, and the initial letter
   -- of the filename is valid and it hasn't already been assigned return that.
-  if config.pick.use_filename and filename ~= "" then
-    local init_letter = vim.fn.strcharpart(filename, 0, 1) or ""
-    local idx = valid_pick_letters:find(init_letter, nil, true)
+  local init_letter = vim.fn.strcharpart(filename, 0, 1) or ""
+  local idx = valid_pick_letters:find(init_letter, nil, true)
 
-    if idx == nil or taken_pick_indices[idx] then
-      while
-        taken_pick_indices[first_valid]
-        and first_valid <= vim.fn.strcharlen(valid_pick_letters)
-      do
-        first_valid = first_valid + 1
-      end
-      idx = first_valid
+  local first_valid = 1
+
+  if idx == nil or taken_pick_indices[idx] then
+    while
+      taken_pick_indices[first_valid]
+      and first_valid <= vim.fn.strcharlen(valid_pick_letters)
+    do
+      first_valid = first_valid + 1
     end
-    if idx then
-      local letter = vim.fn.strcharpart(valid_pick_letters, idx - 1, 1)
-      if letter and letter ~= "" then
-        taken_pick_letters[bufnr] = letter
-        taken_pick_indices[idx] = true
+    idx = first_valid
+  end
+  if idx then
+    local letter = vim.fn.strcharpart(valid_pick_letters, idx - 1, 1)
+    if letter and letter ~= "" then
+      taken_pick_letters[bufnr] = letter
+      taken_pick_indices[idx] = true
 
-        return letter
-      end
+      return letter
     end
   end
 
